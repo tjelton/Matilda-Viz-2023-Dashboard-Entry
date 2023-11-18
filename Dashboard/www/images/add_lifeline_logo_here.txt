@@ -1,0 +1,7 @@
+To recreate the dashboard as seen in the deployed version, please add a Lifeline logo png to this folder here.
+
+The Lifeline logo was not added by me as this is the property of Lifeline, and I did not want to place it in a public repository.
+
+The logo can be easily found on Google Images or the Lifeline website.
+
+**The image must be named "lifeline-logo.png"!**
