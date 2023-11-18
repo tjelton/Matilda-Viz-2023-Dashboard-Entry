@@ -4,13 +4,9 @@
 
 - **Winner of the Judge's Choice Award ([Linkedin Post](https://www.linkedin.com/posts/the-matilda-centre_congratulations-to-the-winners-of-the-2023-activity-7128562091380133888-L5jR?utm_source=share&utm_medium=member_desktop))**
 
--- **Made by Thomas Elton.**
-
----
+- **Made by Thomas Elton.**
 
 Submission Dashboard Link: https://data-viz-2023.shinyapps.io/mental_health_app/
-
----
 
 ## Support Statment
 
