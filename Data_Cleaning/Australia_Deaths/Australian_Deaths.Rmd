@@ -1,0 +1,269 @@
+---
+title: "Australian Deaths by Age and Sex (2019-2021)"
+author: "Thomas Elton"
+date: "Created on 28 Sep 2023; Updated on 19 Nov 2023"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: no
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+---
+
+> This markdown file may become outdated. For the most recent version, please see the GitHub repository here: https://github.com/tjelton/Matilda-Viz-2023-Dashboard-Entry
+
+```{r message=FALSE, warning=FALSE}
+# Load in libraries
+library(tidyverse)
+library(readxl)
+library(stringr)
+```
+
+This document details the data cleaning and initial data analysis for the leading underlying causes of death by sex and age group for Australians from 2019 to 2021.
+
+This is part of my analysis for the Matilda Viz 2023 competition.
+
+# Data Source
+
+The original data was sourced from Australian Government: Australian Institute of Health and Welfare. The original data can be downloaded [here](https://www.aihw.gov.au/reports/life-expectancy-deaths/deaths-in-australia/data) and was last retrieved on the 28th of September 2023.
+
+In this analysis, we will be looking at the spreadsheet sheet titled "Table S3.2".
+
+The original data source is not included on GitHub, and must be downloaded by the user from the following source.
+
+# Data Cleaning
+
+This data set is in a very poor format for plotting in R. One key challenge here is that there are multiple vertical sections in the spreadsheet for the different sexes: Males, Females, and Persons (all people combined).
+
+## Cleaning Process
+
+The way that cleaning this spreadsheet has been approached is by splitting the original data set into three; one for male, female, and all. Then we can merge these together.
+
+```{r message=FALSE, warning=FALSE}
+deaths_data = read_excel("data/AIHW-PHE-229-report-supplementary-tables.xlsx", sheet = "Table S3.2", skip = 3)
+```
+
+```{r}
+# Remove columns which have no values (these separate the male, female and persons) columns in the data set.
+deaths_data_cleaned = deaths_data %>%
+  select(-c(`...6`, `...12`)) %>%
+  
+  # Remove rows at the bottom of the data set which are meta-data (this is the last 9 rows).
+  head(-9)
+```
+
+
+```{r}
+# Subset the male data.
+male_df = deaths_data_cleaned %>%
+  select(`Age group and rank...1`:`Age-specific rate (per 100,000)...5`)
+
+# Rename columns
+male_df <- male_df %>%
+  rename(
+    "Age_Group" = "Age group and rank...1",
+    "Cause_of_Death" = "Cause of death...2",
+    "Count" = "Number...3",
+    "Percentage_of_Deaths" = "Per cent...4",
+    "Rate_Per_100000_Age_Specific" = "Age-specific rate (per 100,000)...5"
+  )
+```
+
+```{r}
+# Cleaning function
+clean_sex_subset <- function(df, sex) {
+  
+  # We want to keep the "All causes" row in each data set.
+  # Hence, in the "Age_Group" column we will give it a rank of 21 for now.
+  # This is because we are about to delete it and replace each ranking with their Age Group.
+  for (i in 1:length(df$Age_Group)) {
+    
+    # Skip over NA values.
+    if (is.na(df$Cause_of_Death[i])) {
+      next
+    }
+    if ("All causes" == df$Cause_of_Death[i]) {
+      df$Age_Group[i] = "21"
+      
+      # The rows for all causes should have the percent being 100.
+      df$Percentage_of_Deaths[i] = "100"
+    }
+  }
+  
+  # Remove all rows in Age_Group that are NA
+  df = df %>%
+    filter(!is.na(Age_Group))
+  
+  # Remove rankings from the Age_Group column.
+  # The age groups from the first row of each section should carry through.
+  age_group = "0-1"
+  # Skip first row which just contains the string "Under 1"
+  for (i in 2:length(df$Age_Group)) {
+    
+    current_value = df$Age_Group[i]
+    
+    # Update the age_group variable is a "-" character is seen.
+    if (grepl("–", current_value) || grepl("\\+", current_value) || grepl("All", current_value)) {
+      age_group = current_value
+      next
+    }
+    
+    df$Age_Group[i] = age_group
+  }
+  
+  # Remove all rows where cause of death is 0.
+  df = df %>%
+    filter(!is.na(Cause_of_Death))
+  
+  # Add a Gender column where the gender is specified as a function parameter
+  df = df %>% 
+    mutate(Sex = sex)
+  
+  
+  # Remove the content in brackets in the Cause_of_Death column.
+  df = df %>%
+    mutate(Cause_of_Death = gsub("\\(.*\\)", "", Cause_of_Death))
+  
+  return(df)
+}
+```
+
+```{r}
+# Clean male data subset.
+male_df = clean_sex_subset(male_df, "Male")
+```
+
+```{r}
+# Clean female data subset.
+female_df = deaths_data_cleaned %>%
+  select(`Age group and rank...7`:`Age-specific rate (per 100,000)...11`)
+
+# Rename columns
+female_df <- female_df %>%
+  rename(
+    "Age_Group" = "Age group and rank...7",
+    "Cause_of_Death" = "Cause of death...8",
+    "Count" = "Number...9",
+    "Percentage_of_Deaths" = "Per cent...10",
+    "Rate_Per_100000_Age_Specific" = "Age-specific rate (per 100,000)...11"
+  )
+
+female_df = clean_sex_subset(female_df, "Female")
+```
+
+```{r}
+# Clean all data subset.
+all_df = deaths_data_cleaned %>%
+  select(`Age group and rank...13`:`Age-specific rate (per 100,000)...17`)
+
+# Rename columns
+all_df <- all_df %>%
+  rename(
+    "Age_Group" = "Age group and rank...13",
+    "Cause_of_Death" = "Cause of death...14",
+    "Count" = "Number...15",
+    "Percentage_of_Deaths" = "Per cent...16",
+    "Rate_Per_100000_Age_Specific" = "Age-specific rate (per 100,000)...17"
+  )
+
+all_df = clean_sex_subset(all_df, "All")
+```
+
+```{r}
+# Combine the different subsets back into one data set.
+deaths_cleaned = rbind(male_df, female_df, all_df)
+```
+
+## The Final Cleaned Dataset
+
+```{r}
+write.csv(deaths_cleaned, "data/death_data_cleaned.csv")
+str(deaths_cleaned)
+```
+
+# Initial Data Analaysis
+
+```{r}
+library(DT)
+library(formattable)
+data = read.csv("data/death_data_cleaned.csv") %>% 
+  select(-X) %>%
+  filter(Cause_of_Death != "All causes") %>%
+  rename(
+    "Age Group" = "Age_Group",
+    "Cause of Death" = "Cause_of_Death",
+    "Deaths" = "Count",
+    "Percentage of Deaths" = "Percentage_of_Deaths",
+    "Rate per 100k" = "Rate_Per_100000_Age_Specific"
+  ) %>%
+  
+  # Add a rank column to rank causes within an age group and sex
+  group_by(`Age Group`, Sex) %>%
+  mutate(Rank = dense_rank(desc(Deaths)))
+```
+
+```{r}
+# Table showing different causes of death, and highlighting the row that says suicide.
+subset = data %>%
+  filter(grepl("15", `Age Group`), grepl("Male", Sex), `Cause of Death` != "All causes") %>%
+  
+  # Make a ranking column (rank based off number of deaths).
+  mutate(Rank = dense_rank(desc(Deaths))) %>%
+  
+  # Re-order columns to make Rank, Deaths, Percentage of Deaths and Rate per 100k the first columns.
+  select(Rank, Deaths,`Percentage of Deaths`, `Rate per 100k`, `Cause of Death`, `Age Group`, Sex)
+
+datatable(subset, rownames = FALSE) %>% formatStyle(
+  'Cause of Death',
+  target = 'row',
+  backgroundColor = styleEqual(c("Suicide "), c('#fabdb9'))
+)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Filter so that only the death types closest to suicide are plot (avoids too much being plotted)
+subset = data %>%
+  filter(grepl("15", `Age Group`), grepl("Male", Sex), `Cause of Death` != "All causes")
+
+subset_2 = subset %>%
+  filter(`Cause of Death` == "Suicide ")
+
+# Get 2 ranks ahead of suicide and 2 ranks below suicide
+suicide_rank = subset %>%
+  filter(`Cause of Death` == "Suicide ") %>%
+  select(Rank) %>%
+  pull()
+bottom_bound = suicide_rank - 2
+upper_bound = suicide_rank + 2
+
+# Filter to the ranks of interest.
+subset_for_plotting = subset %>%
+  filter(Rank >= bottom_bound & Rank <= upper_bound) %>%
+  mutate(`Cause of Death` = paste(str_trunc(`Cause of Death`, 25), "(Rank ", as.character(Rank), ")", sep = "")) %>%
+  
+  # Add colours for custom colouring (every bar will be grey, except for suicide which will be red).
+  mutate(
+    colour = case_when(
+      grepl("Suicide", `Cause of Death`) ~ "rgba(250,189,185,1)",
+      TRUE ~ "rgba(204,204,204,1)"
+    )
+  )
+
+# Create column graph
+library(plotly)
+fig <- plot_ly(
+  x = subset_for_plotting$`Cause of Death`,
+  y = subset_for_plotting$Deaths,
+  type = "bar",
+  marker = list(color = subset_for_plotting$colour)
+) %>% 
+  layout(yaxis = list(title = "Deaths"), xaxis = list(title = "Cause of Death"))
+
+fig
+```
+
+
