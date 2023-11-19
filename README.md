@@ -6,7 +6,7 @@
 
 - Made by Thomas Elton.
 
-Submission Dashboard Link: https://data-viz-2023.shinyapps.io/mental_health_app/
+Submission Dashboard Link: https://thomaselton.shinyapps.io/matilda_viz_dashboard/
 
 ## Supporting Statment
 
