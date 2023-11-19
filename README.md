@@ -20,10 +20,23 @@ The dashboard was constructed using Shiny for R, and most of the plots leveraged
 
 ## Data Cleaning
 
+### Dashboard Chapter 1
 
+*Citations*
 
+Haedo, J. (2017). *Countries ISO Codes.* https://www.kaggle.com/datasets/juanumusic/countries-iso-codes/
 
-#### Dashboard Chapter 3
+Our World in Data (n.d.). *Population, 10,000 BCE to 2021*. https://ourworldindata.org/grapher/population
+
+World Health Organisation (2023). *WHO Mortality Database.* https://www.who.int/data/data-collection-tools/who-mortality-database
+
+*Data Cleaning*
+
+The data cleaning process for chapter 1 of the dashboard was very extensive. The data cleaning process can be found in the "Data_Cleaning/WHO_Suicide_and_Substance_Abuse_Deaths_Per_Country" folder.
+
+The rendered markdown file has been published on RPubs [here](https://rpubs.com/tjelton/WHO-Mortality-DB-Suicide-and-Substance-Abuse-Deaths).
+
+### Dashboard Chapter 3
 
 *Citation*
 
