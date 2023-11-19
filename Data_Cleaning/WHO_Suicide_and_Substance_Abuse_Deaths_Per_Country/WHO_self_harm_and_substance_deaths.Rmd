@@ -1,0 +1,620 @@
+---
+title: "WHO Mortality Suicide and Substance Abuse Data"
+author: "Thomas Elton"
+date: "Created on 2 Oct 2023; Last updated on 19 Nov 2023"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: no
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+---
+
+> This markdown file may become outdated. For the most recent version, please see the GitHub repository here: https://github.com/tjelton/Matilda-Viz-2023-Dashboard-Entry
+
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(plotly)
+```
+
+# Data Source
+
+The data for the different causes of death by country were taken from the World Health Organisation Mortality Database. From the database, the "Country codes", "Population and live births", and "Mortality, ICD-10 (part 5/5)" files were downloaded and used in this analysis. Additionally, the supporting documentation was read to understand how the data sheets fit together.
+
+***Citation:*** World Health Organisation (2023). *WHO Mortality Database.* https://www.who.int/data/data-collection-tools/who-mortality-database
+
+In addition, there was missing data that was needed for the purposes of data analysis. For plotting, the ISO codes for each country were needed, and these were found via a Kaggle data set.
+
+***Citation:*** Haedo, J. (2017). *Countries ISO Codes.* https://www.kaggle.com/datasets/juanumusic/countries-iso-codes/
+
+Additionally, there was a great deal of missing population data from the WHO, and so, an additional data set was used to fill in missing population data.
+
+***Citation:*** Our World in Data (n.d.). *Population, 10,000 BCE to 2021*. https://ourworldindata.org/grapher/population
+
+The original data sources are not provided in the GitHub repository (however, the final cleaned dataset created by the following R code in this report is provided).
+
+# Data Cleaning
+
+```{r, eval = FALSE}
+# Read in data
+country_codes = read.csv("data/country_codes.csv")
+mortality_db = read.csv("data/Morticd10_part5.csv")
+population_data = read.csv("data/pop.csv")
+```
+
+The goal of this report is to create a cleaned data set of the number of deaths from suicide and substance abuse per country.
+
+There is lots of data cleaning here... Data is split into separate files, and within the Morticd10_part5.csv, there are lots of columns and codes that are hard to interpret without looking at the documentation document.
+
+The following data cleaning has been split into three parts.
+
+- The first part looks at the cleaning for the WHO Mortality data. 
+
+- The second part looks at the cleaning for the WHO Population data.
+
+- The third part looks at stitching all the data together into one data set.
+
+- The fourth part uses an additional data set to get the three letter ISO code for each country in the stitched together data set.
+
+- The fifth part merges groups together all sex values (male, femaled, unspecified) into a seperate "All" category.
+
+- The sixth part includes gathering the population data from "Our World in Data" to fill in for where WHO has missing population data.
+
+- The seventh part saves the merged data set into a single csv.
+
+## (Part 1) Cleaning the Mortality Data 
+
+```{r, eval = FALSE}
+# Fist, rename country column in country_codes to have a capital C (required for joining).
+country_codes_updated = country_codes %>%
+  rename("Country" = "country")
+
+# Join country_codes and mortality_df to get the actual country names.
+cleaned_mortalities = left_join(country_codes_updated, mortality_db, by = "Country")
+```
+
+```{r,  eval = FALSE}
+# Remove columns that are not of interest.
+cleaned_mortalities <- cleaned_mortalities %>%
+  select(-c(Admin1, SubDiv, IM_Deaths1:IM_Deaths4, IM_Frmat))
+```
+
+```{r,  eval = FALSE}
+# Filter out causes for those that are suicide and alcohol specific.
+# The actual corresponding ICD-10 death cause can be found from here: https://icd.who.int/browse10/2019/en#/X60-X84
+
+# X60 - X84 are codes for "Intentional self-harm"
+# X67 has categories within which are represented as a fourth character.
+# All other X's seems to have a fourth character for the location that it occured (https://icd.who.int/browse10/2019/en#/XX).
+
+# F10 - F19 are codes for "Mental and behavioural disorders due to psychoactive substance use"
+# Each F code for this range has a fourth character regarding the substance state.
+
+# Get vectors of codes for X and F.
+x_vector = seq(60, 84)
+x_vector = c(x_vector, seq(600, 849))
+x_vector = paste("X", x_vector, sep = "")
+
+f_vector = seq(10, 19)
+f_vector = c(f_vector, seq(100, 199))
+f_vector = paste("F", f_vector, sep = "")
+
+# Additionally, when List == 101 is specified for a row, this uses a different system for identifying the causes. Using Table 8 in WHO associated documentation:
+# A code of 1056 indicates "Mental and behavioural disorders due to psychoactive substance use"
+# A code of 1101 indicates "Intentional self-harm"
+all_codes = c(x_vector, f_vector, "1056", "1101")
+
+# Filter out causes of interest.
+suicide_substance_specific = cleaned_mortalities %>%
+  filter(Cause %in% all_codes)
+
+# Make causes meaningful
+suicide_substance_specific = suicide_substance_specific %>%
+  mutate(
+    Cause = case_when(
+      grepl("^X", Cause) ~ "Intentional self-harm",
+      grepl("^F", Cause) ~ "Mental and behavioural disorders due to psychoactive substance use",
+      grepl("^1056$", Cause) ~ "Mental and behavioural disorders due to psychoactive substance use",
+      grepl("^1101$", Cause)  ~ "Intentional self-harm",
+      TRUE ~ Cause
+    )
+  )
+```
+
+```{r,  eval = FALSE}
+# Merge the Deaths columns into a single column (moving from a wide to long format). 
+suicide_substance_specific_long = suicide_substance_specific %>%
+  pivot_longer(
+    cols = c(Deaths1:Deaths26),
+    names_to = "Age_Range",
+    values_to = "Deaths"
+  )
+```
+
+```{r,  eval = FALSE}
+# Make the Age_Range values more specific.
+
+# There are different conventions for different Frmat numbers. 
+# Hence, we split the data set into different sub data-sets based upon format number (which will be merged later).
+
+# This is a function which formats the "Age_Range" column based upon the Frmat column.
+# NB: This function is only intended to work for Frmat values of 0-4, 7 and 9.
+Frmat_ages <- function(df_input) {
+  
+  df = df_input
+  
+  for (i in 1:length(df$Frmat)) {
+    
+    current_frmat_value = df$Frmat[i]
+    current_Age_Range_value = df$Age_Range[i]
+    
+    # The following is consistent for all format valules:
+    if (grepl("[A-Za-z]1$",current_Age_Range_value)) {
+        df$Age_Range[i] = "All"
+    }
+    
+    # If Frmat = 9, we are done and can move on...
+    if (current_frmat_value == 9) {
+      next
+    }
+    
+    # Now updating the rest of the values.
+    if (grepl("[A-Za-z]2$", current_Age_Range_value)) {
+      df$Age_Range[i] = "0"
+      
+    } else if(grepl("[A-Za-z]3$", current_Age_Range_value)) {
+      if (current_frmat_value == 2 || current_frmat_value == 4 || current_frmat_value == 7) {
+        df$Age_Range[i] = "1-4"
+      } else {
+        df$Age_Range[i] = "1"
+      }
+      
+    } else if(grepl("[A-Za-z]4$", current_Age_Range_value)) {
+      if (current_frmat_value == 0 || current_frmat_value == 1 || current_frmat_value == 3) {
+        df$Age_Range[i] = "2"
+      }
+    
+    } else if(grepl("[A-Za-z]5$", current_Age_Range_value)) {
+      if (current_frmat_value == 0 || current_frmat_value == 1 || current_frmat_value == 3) {
+        df$Age_Range[i] = "3"
+      }
+      
+    } else if(grepl("[A-Za-z]6$", current_Age_Range_value)) {
+      if (current_frmat_value == 0 || current_frmat_value == 1 || current_frmat_value == 3) {
+        df$Age_Range[i] = "4"
+      }
+      
+    } else if(grepl("[A-Za-z]7$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "5-14"
+      } else {
+        df$Age_Range[i] = "5-9"
+      }
+      
+    } else if(grepl("[A-Za-z]8$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "10-14"
+      }
+      
+    } else if(grepl("[A-Za-z]9$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "15-24"
+      } else {
+        df$Age_Range[i] = "15-19"
+      }
+      
+    } else if(grepl("[A-Za-z]10$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "20-24"
+      }
+      
+    } else if(grepl("[A-Za-z]11$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "25-34"
+      } else {
+        df$Age_Range[i] = "25-29"
+      }
+      
+    } else if(grepl("[A-Za-z]12$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "30-34"
+      }
+      
+    } else if(grepl("[A-Za-z]13$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "35-44"
+      } else {
+        df$Age_Range[i] = "35-39"
+      }
+      
+    } else if(grepl("[A-Za-z]14$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "40-44"
+      }
+      
+    } else if(grepl("[A-Za-z]15$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "45-54"
+      } else {
+        df$Age_Range[i] = "45-49"
+      }
+      
+    } else if(grepl("[A-Za-z]16$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "50-54"
+      }
+      
+    } else if(grepl("[A-Za-z]17$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "55-64"
+      } else {
+        df$Age_Range[i] = "55-59"
+      }
+      
+    } else if(grepl("[A-Za-z]18$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "60-64"
+      }
+      
+    } else if(grepl("[A-Za-z]19$", current_Age_Range_value)) {
+      if (current_frmat_value == 7) {
+        df$Age_Range[i] = "65-74"
+      } else {
+        df$Age_Range[i] = "65-69"
+      }
+      
+    } else if(grepl("[A-Za-z]20$", current_Age_Range_value)) {
+      if (current_frmat_value != 7) {
+        df$Age_Range[i] = "70-74"
+      }
+      
+    } else if(grepl("[A-Za-z]21$", current_Age_Range_value)) {
+      if (current_frmat_value == 0 || current_frmat_value == 1 || current_frmat_value == 2) {
+        df$Age_Range[i] = "75-79"
+      } else if (current_frmat_value == 3 || current_frmat_value == 4 || current_frmat_value == 7) {
+        df$Age_Range[i] = "75+"
+      }
+      
+    } else if(grepl("[A-Za-z]22$", current_Age_Range_value)) {
+      if (current_frmat_value == 0 || current_frmat_value == 1 || current_frmat_value == 2) {
+       df$Age_Range[i] = "80-84"
+      }
+      
+    } else if(grepl("[A-Za-z]23$", current_Age_Range_value)) {
+      if (current_frmat_value == 0) {
+       df$Age_Range[i] = "85-89"
+      } else if (current_frmat_value == 1 || current_frmat_value == 2) {
+       df$Age_Range[i] = "85+"
+      }
+      
+    } else if(grepl("[A-Za-z]24$", current_Age_Range_value)) {
+      if (current_frmat_value == 0) {
+       df$Age_Range[i] = "90-94"
+      }
+      
+    } else if(grepl("[A-Za-z]25$", current_Age_Range_value)) {
+      if (current_frmat_value == 0) {
+       df$Age_Range[i] = "95+"
+      }
+      
+    } else if(grepl("[A-Za-z]26$", current_Age_Range_value)) {
+      df$Age_Range[i] = "Unknown"
+    }
+    
+  }
+  
+  return(df)
+
+}
+
+# Run function and filter out empty rows
+cleaned_data_deaths = Frmat_ages(suicide_substance_specific_long)
+cleaned_data_deaths = cleaned_data_deaths %>%
+  filter(!is.na(Deaths))
+```
+
+```{r,  eval = FALSE}
+# Remove columns that are no longer needed
+cleaned_data_deaths = cleaned_data_deaths %>%
+  select(-c(List, Frmat))
+```
+
+```{r,  eval = FALSE}
+# Clean Sex column
+cleaned_data_deaths$Sex <- as.character(cleaned_data_deaths$Sex)
+cleaned_data_deaths = cleaned_data_deaths %>%
+  mutate(
+    Sex = case_when(
+      grepl("^1", Sex) ~ "Male",
+      grepl("^2", Sex) ~ "Female",
+      grepl("^9", Sex) ~ "Unspecified",
+      TRUE ~ ""
+    )
+  )
+```
+
+```{r message=FALSE, warning=FALSE, eval = FALSE}
+# Aggregate Deaths for rows that have the same Country, name, Year, Cause, Sex and Age_Range.
+cleaned_data_deaths = cleaned_data_deaths %>%
+  group_by(Country, name, Year, Cause, Sex, Age_Range) %>%
+  summarise(Deaths = sum(Deaths)) %>%
+  ungroup()
+```
+
+## (Part 2) Cleaning the Population Data
+
+```{r, eval = FALSE}
+# We are only interested in years from 2017 - 2021
+pop_data = population_data %>% 
+  filter(Year >= 2017 & Year <= 2021)
+```
+
+```{r,  eval = FALSE}
+# Get the country names using the same method as when cleaning the mortality data.
+pop_data_cleaned = left_join(country_codes_updated, pop_data, by = "Country")
+
+# Remove rows where Frmat is not defined (This indicates that these rows are empty).
+pop_data_cleaned = pop_data_cleaned %>%
+  filter(!is.na(Frmat))
+```
+
+```{r,  eval = FALSE}
+# Make the population in a wide format.
+pop_data_cleaned_long = pop_data_cleaned %>%
+  pivot_longer(
+    cols = c(Pop1:Pop26),
+    names_to = "Age_Range",
+    values_to = "People"
+  )
+
+# Run the function to make the values in the "Age_Range" column more readable.
+pop_data_cleaned_long = Frmat_ages(pop_data_cleaned_long)
+
+# Remove rows with NA in the "People" column.
+pop_data_cleaned_long = pop_data_cleaned_long %>%
+  filter(!is.na(People))
+```
+
+```{r,  eval = FALSE}
+# Remove columns that are not of interest.
+cleaned_pop_data = pop_data_cleaned_long %>%
+  select(-c(Lb, SubDiv, Admin1, Frmat))
+```
+
+```{r,  eval = FALSE}
+# Clean the "Sex" column.
+cleaned_pop_data = cleaned_pop_data %>%
+   mutate(
+    Sex = case_when(
+      grepl("^1", Sex) ~ "Male",
+      grepl("^2", Sex) ~ "Female",
+      grepl("^9", Sex) ~ "Unspecified",
+      TRUE ~ ""
+    )
+  )
+```
+
+
+## (Part 3) Merge the WHO Mortality and WHO Population Data
+
+The final cleaned WHO Mortality and WHO Population data are in variables named `cleaned_data_deaths` and `cleaned_pop_data` respectively.
+
+```{r,  eval = FALSE}
+# Merge cleaned_data_deaths and cleaned_pop_data
+merged_data = left_join(cleaned_data_deaths, cleaned_pop_data, by = c("Country", "name", "Year", "Sex", "Age_Range"))
+```
+
+```{r,  eval = FALSE}
+# Remove the Country column (this is a numerical id that we no longer need).
+merged_data = merged_data %>% select(-Country)
+
+# Rename "People" column.
+merged_data = merged_data %>%
+  rename(
+    "Age_and_Sex_Population" = "People",
+    "Country" = "name"
+  )
+```
+
+
+## (Part 4) Add the 3-letter ISO Code for Each Country
+
+```{r,  eval = FALSE}
+# Get the ISO codes for each Country
+
+# Data from the ISO codes from: https://www.kaggle.com/datasets/juanumusic/countries-iso-codes/
+ISO_data_set = read.csv("data/wikipedia-iso-country-codes.csv")
+ISO_data_set = ISO_data_set %>%
+  select(English.short.name.lower.case, Alpha.3.code) %>%
+  rename(
+    "Country" = "English.short.name.lower.case",
+    "ISO_Code" = "Alpha.3.code"
+    )
+```
+
+```{r,  eval = FALSE}
+# Get the unique country names from our cleaned data set.
+country_names_dataset = data.frame(unique(merged_data$Country)) %>% 
+  rename(
+    "Country" = "unique.merged_data.Country."
+  )
+```
+
+```{r,  eval = FALSE}
+# Merge data sets to get the ISO codes for the countries in our cleaned data set.
+merged_countries = left_join(country_names_dataset, ISO_data_set, by = "Country")
+
+# For countries that didn't have a corresponding ISO code, manually adjust.
+# This is because of country naming differences within our data set and the ISO_data_set.
+merged_countries["ISO_Code"][merged_countries["Country"] == "Rodrigues"] <- "MUS"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Saint Vincent and Grenadines"] <- "VCT"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Turks and Caicos Islands"] <- "TCA"
+merged_countries["ISO_Code"][merged_countries["Country"] == "United States of America"] <- "USA"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Virgin Islands (USA)"] <- "VIR"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Hong Kong SAR"] <- "HKG"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Occupied Palestinian Territory"] <- "PSE"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Republic of Korea"] <- "KOR"
+merged_countries["ISO_Code"][merged_countries["Country"] == "North Macedonia"] <- "MKD"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Republic of Moldova"] <- "MDA"
+merged_countries["ISO_Code"][merged_countries["Country"] == "Russian Federation"] <- "RUS"
+merged_countries["ISO_Code"][merged_countries["Country"] == "United Kingdom, England and Wales"] <- "GBR"
+merged_countries["ISO_Code"][merged_countries["Country"] == "United Kingdom, Northern Ireland"] <- "GBR"
+merged_countries["ISO_Code"][merged_countries["Country"] == "United Kingdom, Scotland"] <- "GBR"
+```
+
+```{r,  eval = FALSE}
+# Add the ISO codes to our cleaned data set with the WHO deaths of interest.
+cleaned_data = left_join(merged_data, merged_countries, by = "Country")
+```
+
+```{r, eval = FALSE}
+# Merge UK regions to be together
+UK = cleaned_data %>%
+  filter(ISO_Code == "GBR") %>%
+  group_by(Year, Cause, Age_Range, ISO_Code, Sex) %>%
+  summarise(Deaths = sum(Deaths), Age_and_Sex_Population = sum(Age_and_Sex_Population)) %>%
+  mutate(Country = "United Kingdom")
+
+# Get the rows with the UK (we need to remove before re-merging to eliminate duplication)
+rest_of_world = cleaned_data %>%
+  filter(ISO_Code != "GBR")
+
+cleaner_data = rbind(UK, rest_of_world)
+```
+
+
+## (Part 5) Merge Groups With Differe Sex Values Into an "All" Gender Classification Value
+
+```{r,  eval = FALSE}
+# Group based upon Country, Year, Cause, Age_Range and ISO_Code.
+# Sum up population number and deaths for each group, and set Sex to "All".
+All_rows = cleaner_data %>%
+  group_by(Country, Year, Cause, ISO_Code, Age_Range) %>%
+  summarise(Deaths = sum(Deaths), Age_and_Sex_Population = sum(Age_and_Sex_Population)) %>%
+  mutate(Sex = "All") %>%
+  ungroup()
+
+cleaned_data_with_ISO_codes = rbind(cleaner_data, All_rows)
+```
+
+
+## (Part 6) Fill in Missing Population Values With Other Data Source
+
+```{r, eval = FALSE}
+# Read in population data from "Our World In Data".
+# Data from: https://ourworldindata.org/grapher/population
+other_pop_data = read.csv("data/population_data_our_world_in_data.csv")
+
+# Filter to the years we are interested in.
+# Only keep countries with a defined ISO Code.
+cleaned_other_pop_data = other_pop_data %>%
+  filter(Year >= 2017 & Year <= 2021) %>%
+  filter(Code != "") %>%
+  rename("People" = "Population..historical.estimates.")
+```
+
+```{r, eval = FALSE}
+# In the cleaned_data_with_ISO_codes data set, fill in the population for sex = "All" rows where People is undefined (i.e. WHO doesn't have population data).
+data_updated_populations = cleaned_data_with_ISO_codes
+
+for (i in 1:length(data_updated_populations$Sex)) {
+
+  # We only have data for all the sexes combined.
+  if (data_updated_populations$Sex[i] == "All" && data_updated_populations$Age_Range[i] == "All") {
+    
+    if (is.na(data_updated_populations$Age_and_Sex_Population[i])) {
+      
+      ISO_code = data_updated_populations$ISO_Code[i]
+      year = data_updated_populations$Year[i]
+      
+      # Get values from the "Our World In Data" set.
+      pop_value = cleaned_other_pop_data %>%
+        filter(Code == ISO_code, Year == year) %>%
+        select(People) %>%
+        pull()
+      
+      data_updated_populations$Age_and_Sex_Population[i] = pop_value
+    }
+    
+  }
+}
+```
+
+
+## (Part 7) The Final Cleaned Dataset
+
+```{r,  eval = FALSE}
+write.csv(data_updated_populations, "data/world_wide_self_harm_and_substance_deaths.csv", row.names = FALSE)
+str(data_updated_populations)
+```
+
+
+# Initial Data Analysis
+
+```{r}
+cleaned_data = read.csv("data/world_wide_self_harm_and_substance_deaths.csv")
+```
+
+## Choropleth Suicide Map
+
+```{r message=FALSE, warning=FALSE}
+# Get data for plotting and get rate of deaths per 100,000 people.
+rates = cleaned_data %>%
+  filter(Sex == "All", Age_Range == "All", Cause == "Intentional self-harm") %>%
+  mutate(
+    Rate_per_100_000 = (Deaths/Age_and_Sex_Population) * 100000
+  )
+```
+
+```{r message=FALSE, warning=FALSE}
+# Great tutorial for making chloropleth maps: https://plotly.com/r/choropleth-maps/
+
+# Add a column of strings for the text when you hover over a country.
+rates_with_description = rates
+rates_with_description$hover = with(rates_with_description, paste('(per 100k people)', '<br><br>', Country, '<br>Year: ', Year, '<br>Total Deaths: ', Deaths, sep = ""))
+
+# Initalise plot
+fig = plot_geo(rates_with_description)
+
+# Specify data.
+# Can optionally specify a colour palette. E.g. colors = 'Blues'
+# Available colors values here: https://plotly.com/r/builtin-colorscales/
+fig = fig %>% add_trace(
+  z = ~Rate_per_100_000, colour = ~Rate_per_100_000,
+  text = ~hover, locations = ~ISO_Code
+)
+
+# Customisation parameters available here: https://plotly.com/r/reference/layout/geo/
+g <- list(
+  showframe = FALSE
+)
+
+# Layout for the plot.
+fig = fig %>% layout(
+  title = "Country Suicides per 100,000 People",
+  geo = g
+)
+
+# Layout for the colorbar.
+# Customisation parameters available here: https://plotly.com/r/reference/#scatter-marker-colorbar
+fig = fig %>% colorbar(
+  title = list(font = list(color = '#8D23C2'), text = "Deaths per 100,000 People"),
+  orientation = "h",
+  thickness = 15,
+  yanchor = "bottom",
+  xanchor = "left",
+  yref = "paper",
+  y = 0,
+  ypad = -4,
+  tickcolor = "#8D23C2",
+  tickfont = list(color = "#8D23C2"),
+  outlinecolor = "#8D23C2"
+  )
+
+fig
+```
