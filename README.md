@@ -22,7 +22,7 @@ The dashboard was constructed using Shiny for R, and most of the plots leveraged
 
 ### Dashboard Chapter 1
 
-*Citations*
+***Citations***
 
 Haedo, J. (2017). *Countries ISO Codes.* https://www.kaggle.com/datasets/juanumusic/countries-iso-codes/
 
@@ -30,7 +30,7 @@ Our World in Data (n.d.). *Population, 10,000 BCE to 2021*. https://ourworldinda
 
 World Health Organisation (2023). *WHO Mortality Database.* https://www.who.int/data/data-collection-tools/who-mortality-database
 
-*Data Cleaning*
+***Data Cleaning***
 
 The data cleaning process for chapter 1 of the dashboard was very extensive. The data cleaning process can be found in the "Data_Cleaning/WHO_Suicide_and_Substance_Abuse_Deaths_Per_Country" folder.
 
@@ -38,11 +38,11 @@ The rendered markdown file has been published on RPubs [here](https://rpubs.com/
 
 ### Dashboard Chapter 3
 
-*Citation*
+***Citation***
 
 Australian Government: Australian Institue of Health and Welfare (2023). *Data tables: Deaths in Australia.* https://www.aihw.gov.au/reports/life-expectancy-deaths/deaths-in-australia/data 
 
-*Data Cleaning*
+***Data Cleaning***
 
 From the spreadsheet download, only the sheet labelled "Table S3.2" was used. This table collated the leading underlying causes of death by sex and age group for Australians from 2019 to 2021.
 
