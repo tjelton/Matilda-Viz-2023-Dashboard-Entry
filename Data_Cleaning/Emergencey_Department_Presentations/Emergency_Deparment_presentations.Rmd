@@ -1,0 +1,265 @@
+---
+title: "Mental Health Related Emergency Department Presentations (Australia)"
+author: "Thomas Elton"
+date: "Created on 27 Sep 2023; Updated on 19 Nov 2023"
+output:
+  html_document:
+    fig_caption: yes
+    number_sections: no
+    self_contained: yes
+    theme: flatly
+    toc: true
+    toc_depth: 3
+    toc_float: true
+    code_folding: show
+---
+
+> This markdown file may become outdated. For the most recent version, please see the GitHub repository here: https://github.com/tjelton/Matilda-Viz-2023-Dashboard-Entry
+
+```{r message=FALSE, warning=FALSE}
+# Load in libraries
+library(tidyverse)
+library(readxl)
+library(stringr)
+```
+
+This document details the initial data analysis (IDA) of mental health emergency department data.
+
+This is part of my analysis for the Matilda Viz 2023 competition.
+
+# Data Source
+
+The original data was sourced from Australian Government: Australian Institute of Health and Welfare. The original data can be downloaded [here](https://www.aihw.gov.au/mental-health/topic-areas/emergency-departments) and was last retrieved on the 28th of September 2023.
+
+The data we will be looking at is on the sheet titled "Table ED.4". The name of the table is "Mental health-related emergency department presentations in public hospitals, by states and territories, 2014–15 to 2021–22."
+
+***Citation:*** Australian Government: Australian Institute of Health and Welfare (2023). *Data tables: Mental health services provided in emergency departments 2021–22.* https://www.aihw.gov.au/mental-health/topic-areas/emergency-departments 
+
+# Data Cleaning
+
+The original data is in a wide format, which proves very difficult for plotting and analysis in R. Hence, the following code cleans the data into a long format. 
+
+## Cleaning Process
+
+```{r}
+hospital_data <- read_excel("data/Mental-health-services-provided-in-emergency-departments-2122.xlsx", sheet = "Table ED.4", skip = 4)
+```
+
+```{r}
+# Remove the blank rows that exist in the sheet for formatting.
+# Remove the "Average annual change" column (this is column)
+hospital_data_cleaned <- hospital_data %>% 
+  filter(!is.na(Count)) %>%
+  select(-13)
+```
+
+```{r}
+# The following code converts the data into a long format (is is currently a wide format).
+hospital_data_cleaned_long = hospital_data_cleaned %>%
+  pivot_longer(
+    cols = c(`2014–15`:`2021–22`),
+    names_to = "year",
+    values_to = "value"
+  )
+```
+
+```{r}
+# Rename year column so that we only focus on the first part of the year.
+# e.g. For the year "2020-21", we only want to focus on "2020" (i.e. extract the first 4 characters)
+for (value in 1:length(hospital_data_cleaned_long$year)) {
+  hospital_data_cleaned_long$year[value] = stringr::str_extract(hospital_data_cleaned_long$year[value], "^.{4}")
+}
+```
+
+```{r}
+# Rename quarters to Q1 - Q4 for easier observing.
+hospital_data_cleaned_long = hospital_data_cleaned_long %>%
+  mutate(
+    Quarter = case_when(
+      grepl("January", Quarter) ~ "1",
+      grepl("April", Quarter) ~ "2",
+      grepl("July", Quarter) ~ "3",
+      grepl("October", Quarter) ~ "4",
+      grepl("All", Quarter) ~ "Year",
+      TRUE ~ Quarter
+    )
+  )
+
+# Remove the year rows as we can simply re-create that when needed.
+hospital_data_cleaned_long = hospital_data_cleaned_long %>%
+  filter(Quarter != "Year")
+```
+
+```{r}
+# Create a column which will contain the year and quarter as a numerical value and a string.
+hospital_data_cleaned_long = hospital_data_cleaned_long %>%
+  mutate(
+    # Default values.
+    Time_Number = 0,
+    Time_String = ""
+  )
+
+for (i in 1:length(hospital_data_cleaned_long$year)) {
+  
+  quarter = hospital_data_cleaned_long$Quarter[i]
+  year = hospital_data_cleaned_long$year[i]
+  
+  # Set Time_String for the current row.
+  string_1 = paste("Q", quarter, sep = "")
+  string_2 = paste(string_1, year, sep = " ")
+  hospital_data_cleaned_long$Time_String[i] = string_2
+  
+  # Set Time_Number for the current row.
+  decimal = 0
+  if (quarter == "2") {
+    decimal = 0.25
+  } else if (quarter == "3") {
+    decimal = 0.5
+  } else if (quarter == "4") {
+    decimal = 0.75
+  }
+  hospital_data_cleaned_long$Time_Number[i] = as.integer(year) + decimal
+}
+```
+
+```{r}
+# Rename State and Territories to be acronyms.
+hospital_data_cleaned_long = hospital_data_cleaned_long %>%
+  
+  # There must be some weird characters within the name of the states (realised when trying to merge later with a geojson file).
+  # Solution is to rename states to a string where the characters are consistent.
+  mutate(
+    `State/Territory` = case_when(
+      grepl("National", `State/Territory`) ~ "Australia",
+      grepl("New", `State/Territory`) ~ "New South Wales",
+      grepl("Western", `State/Territory`) ~ "Western Australia",
+      grepl("Queensland", `State/Territory`) ~ "Queensland",
+      grepl("Victoria", `State/Territory`) ~ "Victoria",
+      grepl("Northern", `State/Territory`) ~ "Northern Territory",
+      grepl("Capital", `State/Territory`) ~ "Australian Capital Territory",
+      grepl("Tasmania", `State/Territory`) ~ "Tasmania",
+      grepl("South", `State/Territory`) ~ "South Australia",
+      TRUE ~ `State/Territory`
+    )
+  )
+```
+
+```{r}
+# Rename columns.
+hospital_data_cleaned_long = hospital_data_cleaned_long %>%
+  rename(
+    "Location" = "State/Territory",
+    "Type" = "Type of presentation",
+    "Year" = "year",
+    "Value" =  "value"
+    ) 
+```
+
+## The Final Cleaned Dataset
+
+```{r}
+write.csv(hospital_data_cleaned_long, "data/cleaned_mental_health_emergency_department.csv")
+str(hospital_data_cleaned_long)
+```
+
+# Initial Data Analysis
+
+```{r}
+hospital_data = read.csv("data/cleaned_mental_health_emergency_department.csv")
+```
+
+## Hospitalisations by Location
+
+In order to plot the Australian states and territories, data was needed of the boundaries of each state and territory for plotting. These were found from here:
+
+Hogan, R. (2014). *australian-states/states.geojson.* https://github.com/rowanhogan/australian-states/blob/master/states.geojson
+
+*Note: To re-create this plot, you must donwload the states data from the GitHub link above!* 
+
+```{r message=FALSE, warning=FALSE}
+library(sf)
+library(leaflet)
+library(dplyr)
+
+# Filter data to only focus on data of interest.
+subset = hospital_data %>%
+  filter(Location != "Australia") %>%
+  filter(Time_String == "Q3 2021", Count == "Number", grepl("Mental", Type))
+ 
+# Get spatial data.
+# Spatial data downloaded from: https://github.com/rowanhogan/australian-states/blob/master/states.geojson
+australia_sf <- sf::st_read("data/Australia_states.geojson")
+
+# Join data.
+merged = australia_sf %>% 
+  dplyr::left_join(subset, by = c("STATE_NAME" = "Location"))
+```
+
+```{r}
+# Credit: https://rstudio.github.io/leaflet/choropleths.html
+map <- leaflet(merged)
+
+# Make the colour palette for the leaflet be based upon the Value column.
+pal <- colorQuantile("YlOrRd", domain = merged$Value)
+
+# Labels for each state.
+labels <- sprintf(
+  "<strong>%s</strong><br/>%g Mental Health-Related Presentations",
+  merged$STATE_NAME, merged$Value
+) %>% lapply(htmltools::HTML)
+
+# Create map.
+map %>% addPolygons(
+  fillColor = ~pal(Value),
+  weight = 2,
+  opacity = 1,
+  color = "white",
+  dashArray = "3",
+  fillOpacity = 0.7,
+  highlightOptions = highlightOptions(
+    weight = 2,
+    color = "#56575c",
+    dashArray = "",
+    fillOpacity = 0.7,
+    bringToFront = TRUE),
+  label = labels,
+  labelOptions = labelOptions(
+    style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "15px",
+    direction = "auto"))
+```
+
+## Trend in Hopsitalisations by Year
+
+```{r}
+# Get the type here because of weird string formatting.
+# This is for "Mental health-related presentations" which contains characters that are atypical.
+type = hospital_data$Type[1]
+
+scatter_data = hospital_data %>% 
+  filter(Count == "Number", Type == type) %>%
+  filter(Year <= 2021) %>%
+  group_by(Year, Location) %>%
+  summarise(Value = sum(Value))
+scatter_data$Year = as.numeric(scatter_data$Year)
+
+fig = scatter_data %>% filter(Location != "Australia") %>%
+  ggplot() +
+  aes(x = Year, y = Value, colour = Location) + 
+  geom_line() +
+  geom_point() +
+  expand_limits(y = 0) +
+  labs(y = "Hospitalisations") +
+  ggtitle("Australian Mental Health-Related Hospitalisations") +
+  
+  # Remove scientific notation.
+  scale_y_continuous(labels = scales::comma) 
+
+library(plotly)
+ggplotly(fig)
+```
+
+
+
+
+
