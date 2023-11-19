@@ -15,7 +15,6 @@ library(sf)
 library(leaflet)
 library(shinyalert)
 
-
 options(shiny.fullstacktrace=TRUE)
 
 ###################################################################################
@@ -241,7 +240,7 @@ ui <- fluidPage(
                                       HTML("<h4 style='padding-left: 8px;'>A Sad Reality</h4>"),
                                       br(),
                                       HTML("<p style='padding-left: 8px;'>Suicide is an international epidemic. It is a serious cause of death which 
-                                           affects not only Australia, but the entire world.<br><br>If you look to the left, you will see a world map 
+                                           affects not only Australia, but the entire world.<br><br>If you look to the right, you will see a world map 
                                            with different countries shaded different colours (this map is interactive). The colour coding represents the number 
                                            of deaths from suicide in each country during the year 2017. Darker colours represent a lower number of deaths by suicide
                                            as compared to other countries, with lighter and warmer colours reprenting a high relative death count. 
@@ -966,34 +965,40 @@ ui <- fluidPage(
                    linebreaks(1),
                    HTML("<h5>Chapter 1 Datasets</h5>"),
                    linebreaks(1),
-                   HTML("<p><b>World Health Organisation Mortality Database, World Health Organisation Population Data, World Health Organisation Country Codes:</b></p>
+                   HTML("<p><b>World Health Organisation Mortality Database:</b></p>
                    
-                        These datasets formed the basis of the analysis in chapter 1. Data here came from the <a href='https://www.who.int/data/data-collection-tools/who-mortality-database'>World Health Organisation</a>.
-                        Visiting this link will allow you to download the three datasets, as well as accompanying documentation. For the mortality data \"Mortality, 
-                        ICD-10 (part 5/5)\" was utilised (this incldues mortality data from 2017 onwards).<br><br>
+                        <em>Citation: </em>World Health Organisation (2023). 
+                        <em>WHO Mortality Database</em>. https://www.who.int/data/data-collection-tools/who-mortality-database
                         
-                        Cleaning this data was a challenge, as these three data sets had to be merged, and additionally they were in a wide format which needed to be converted
-                        into a long format.<br><br>
+                        <br><br>The data for the different causes of death by country were taken from the World Health Organisation Mortality Database. 
+                        From the database, the “Country codes”, “Population and live births”, and “Mortality, ICD-10 (part 5/5)” files were downloaded
+                        and used in this analysis. Additionally, the supporting documentation was read to understand how the data sheets fit together.<br><br>
+                      
+                        <p><b>Country Names to ISO Label Dataset:</b></p>
+                        
+                        <em>Citation: </em>Haedo, J. (2017). <em>Countries ISO Codes</em>. https://www.kaggle.com/datasets/juanumusic/countries-iso-codes/
+
+                        <br><br>For creating the world plot, there was a need to map the country names to their ISO-3 code. The above link provides a data set that maps
+                        country name to their relevant ISO-3 code.<br><br>
                         
                         <p><b>Our World in Data Population Data by Year:</b></p>
                         
-                        This data set was used as there was some missing data in the World Health Organisation Population Data. This allowed for more countries to be plotted
-                        when considering the suicide and substance abuse rates. This data can be found <a href='https://ourworldindata.org/grapher/population'>here</a>.<br><br>
+                        <em>Citation: </em>Our World in Data (n.d.). <em>Population, 10,000 BCE to 2021</em>. https://ourworldindata.org/grapher/population
                         
-                        <p><b>Country Names to ISO Label Dataset:</b></p>
-
-                        For creating the world plot, there was a need to map the country names to their ISO-3 code. Data for this was accessed <a href='https://ourworldindata.org/grapher/population'>here</a>.<br><br></p>")
-          ),
+                        <br><br>This data set was used as there was some missing data for country populations in the World Health Organisation data. This allowed for more countries to be plotted
+                        when considering the suicide and substance abuse rates.</p>"),
+                        actionBttn(inputId = "chapter_1_cleaning_report", label="Chapter 1 Data Cleaning Report", onclick ="window.open('https://rpubs.com/tjelton/WHO-Mortality-DB-Suicide-and-Substance-Abuse-Deaths', '_blank')"),
+                  ),
           tabPanel("Chapter 2", 
                    linebreaks(1),
                    HTML("<h5>Chapter 2 Dataset</h5>"),
                    linebreaks(1),
                    HTML("<p><b>Deaths in Australia:</b></p>
                    
-                        <p>Data here was sourced from Australian Government: Australian Institute of Health and Welfare. The original data can be downloaded <a href='https://www.aihw.gov.au/reports/life-expectancy-deaths/deaths-in-australia/data'>here</a>
-                        and was last retrieved on the 28th of September 2023. Within this spreadsheet file, the page named \"Table S3.2\" was used. Once again, extensive data cleaning
-                        was performed to put the data in a format appropriate for plotting.</p>")
-
+                        <em>Citation: </em>Australian Government: Australian Institue of Health and Welfare (2023). <em>Data tables: Deaths in Australia</em>. https://www.aihw.gov.au/reports/life-expectancy-deaths/deaths-in-australia/data
+                   
+                        <br><br>From the spreadsheet download, only the sheet labelled \"Table S3.2\" was used. This table collated the leading underlying causes of death by sex and age group for Australians from 2019 to 2021.<br><br>"),
+                   actionBttn(inputId = "chapter_2_cleaning_report", label="Chapter 2 Data Cleaning Report", onclick ="window.open('https://rpubs.com/tjelton/australian-deaths-2019-to-2021', '_blank')"),
           ),
           tabPanel("Chapter 3", 
                    linebreaks(1),
@@ -1001,9 +1006,15 @@ ui <- fluidPage(
                    linebreaks(1),
                    HTML("<p><b>Emergency Department Mental Health Visits:</b></p>
                    
-                        <p>Data here was sourced from Australian Government: Australian Institute of Health and Welfare. The original data can be downloaded <a href='https://www.aihw.gov.au/mental-health/topic-areas/emergency-departments'>here</a>
-                        and was last retrieved on the 28th of September 2023. Within this spreadsheet file, the page named \"Table ED.4\" was used. Once again, extensive data cleaning
-                        was performed to put the data in a format appropriate for plotting.</p>")
+                   
+                        <em>Citation: </em> Australian Government: Australian Institute of Health and Welfare (2023). <em>Data tables: Mental health services provided in emergency departments 2021–22</em>. https://www.aihw.gov.au/mental-health/topic-areas/emergency-departments
+                   
+                        <br><br>From the spreadsheet donwload, only the sheet labelled “Table ED.4” was used. The name of this table is \"Mental health-related emergency department presentations in public hospitals, by states and territories, 2014–15 to 2021–22.\"<br><br>
+                        
+                        Australia states and territories <em>geojson file citation: </em><br><br>
+                        
+                        Hogan, R. (2014). <em>australian-states/states.geojson</em>. https://github.com/rowanhogan/australian-states/blob/master/states.geojson<br><br>"),
+                   actionBttn(inputId = "chapter_3_cleaning_report", label="Chapter 3 Data Cleaning Report", onclick ="window.open('https://rpubs.com/tjelton/mental-health-related-emergency-department-presentations-australia', '_blank')"),
           ),
           tabPanel("Chapter 4", 
                    linebreaks(1),
@@ -1011,29 +1022,45 @@ ui <- fluidPage(
                    linebreaks(1),
                    HTML("<p><b>Lifeline Data</b></p>
                    
-                        <p>Data from Lifeline was collated by looking through their annual reports which can be found <a href='https://www.lifeline.org.au/about/governance/annual-reports/'>here</a>.</p>")
+                        <p>Data from Lifeline was collated by looking through their annual reports which can be found at the below website:</p><br>
+                        
+                        <em>Citation: </em>Lifeline (n.d). <em>Lifeline's Annual reports</em>. https://www.lifeline.org.au/about/governance/annual-reports/")
           ),
           tabPanel("R Packages Used", 
                    linebreaks(1),
                    HTML("<h5>The following R pacakges were used throught this data story:</h5>"),
                    linebreaks(1),
                    HTML("
-                   <ul>
-                    <li>shiny</li>
-                    <li>shinyWidgets</li>
-                    <li>bslib</li>
-                    <li>tidyverse</li>
-                    <li>pushbar</li>
-                    <li>scroller</li>
-                    <li>scrollrevealR</li>
-                    <li>shinydashboard</li>
-                    <li>shinydashboardPlus</li>
-                    <li>scrollytell</li>
-                    <li>DT</li>
-                    <li>formattable</li>
-                    <li>sf</li>
-                    <li>leaflet</li>
-                   </ul>")
+                   <font size = \"-2\">
+                   <p>Pearce Adam, Roelof Waaijman Waaijman and Edwin de Jonge (2023). scrollytell: Scrollytelling for RMarkdown and Shiny. R package version 0.1.0.9000.</p>
+                   
+                   <p>Winston Chang, Joe Cheng, JJ Allaire, Carson Sievert, Barret Schloerke, Yihui Xie, Jeff Allen, Jonathan McPherson,
+                   Alan Dipert and Barbara Borges (2021). shiny: Web Application Framework for R. R package version 1.7.1. https://CRAN.R-project.org/package=shiny</p>
+                   
+                   <p>Winston Chang and Barbara Borges Ribeiro (2021). shinydashboard: Create Dashboards with 'Shiny'. R package version 0.7.2. https://CRAN.R-project.org/package=shinydashboard</p>
+                   
+                   <p>Joe Cheng, Bhaskar Karambelkar and Yihui Xie (2022). leaflet: Create Interactive Web Maps with the JavaScript 'Leaflet' Library. R package version 2.1.0. https://CRAN.R-project.org/package=leaflet</p>
+                   
+                   <p>John Coene (2019). pushbar: Create Sliders for 'Shiny'. R package version 0.1.0. https://CRAN.R-project.org/package=pushbar</p>
+
+                   <p>David Granjon (2021). shinydashboardPlus: Add More 'AdminLTE2' Components to 'shinydashboard'. R package version 2.0.3. https://CRAN.R-project.org/package=shinydashboardPlus</p>
+
+                   <p>Mohamed El Fodil Ihaddaden (2020). scrollrevealR: Animate 'shiny' Elements when They Scroll into View using the 'scrollrevealjs' Library. R package version 0.2.0. https://CRAN.R-project.org/package=scrollrevealR</p>
+
+                   <p>Félix Luginbuhl (2023). scroller: Scroll to any element in Shiny. https://github.com/lgnbhl/scroller.</p>
+                   
+                   <p>Pebesma, E., 2018. Simple Features for R: Standardized Support for Spatial Vector Data. The R Journal 10 (1), 439-446, https://doi.org/10.32614/RJ-2018-009</p>
+
+                   <p>Victor Perrier, Fanny Meyer and David Granjon (2023). shinyWidgets: Custom Inputs Widgets for Shiny. R package version 0.8.0. https://CRAN.R-project.org/package=shinyWidgets</p>
+
+                   <p>Kun Ren and Kenton Russell (2021). formattable: Create 'Formattable' Data Structures. R package version 0.2.1. https://CRAN.R-project.org/package=formattable</p>
+                   
+                   <p>Carson Sievert, Joe Cheng and Garrick Aden-Buie (2023). bslib: Custom 'Bootstrap' 'Sass' Themes for 'shiny' and 'rmarkdown'. R package version 0.5.1. https://CRAN.R-project.org/package=bslib</p>
+                   
+                   <p>Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686, https://doi.org/10.21105/joss.01686</p>
+
+                   <p>Yihui Xie, Joe Cheng and Xianying Tan (2022). DT: A Wrapper of the JavaScript Library 'DataTables'. R package version 0.21. https://CRAN.R-project.org/package=DT</p>
+                   </font>"),
           )
         ),
       ),
