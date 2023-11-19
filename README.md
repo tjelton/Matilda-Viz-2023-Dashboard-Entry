@@ -70,3 +70,19 @@ In order to create the chloropleth map of Australia, a geojson file of the bound
 
 Hogan, R. (2014). australian-states/states.geojson. https://github.com/rowanhogan/australian-states/blob/master/states.geojson
 
+### Dashboard Chapter 4
+
+***Citation***
+
+Lifeline (n.d). *Lifeline's Annual reports.* https://www.lifeline.org.au/about/governance/annual-reports/
+
+***Data***
+
+The data for Lifeline's calls answered and the call answer rate were manually taken taken from Lifeline's annual reports. The following lines of code can be used to construct the data frame/tibble used in chapter 4 of the dashboard.
+
+```
+year = c("21-22", "20-21", "19-20", "18-19", "17-18", "16-17", "15-16", "14-15")
+calls_answered = c(1142234,1070860,835867,731646, 732365,793397, 831744, 821804)
+call_answer_rate = c(87,90.34,84.5,80,82,85,85,85)/100
+lifeline_data = tibble(year, calls_answered, call_answer_rate) 
+```
