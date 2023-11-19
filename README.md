@@ -36,7 +36,7 @@ The data cleaning process for chapter 1 of the dashboard was very extensive. The
 
 The rendered markdown file has been published on RPubs [here](https://rpubs.com/tjelton/WHO-Mortality-DB-Suicide-and-Substance-Abuse-Deaths).
 
-### Dashboard Chapter 3
+### Dashboard Chapter 2
 
 ***Citation***
 
@@ -50,4 +50,23 @@ The data cleaning R code can be found in the "Data_Cleaning/Australia_Deaths" fo
 
 The rendered markdown file has been published on RPubs [here](https://rpubs.com/tjelton/australian-deaths-2019-to-2021).
 
+### Dashboard Chapter 3
+
+***Citation***
+
+Australian Government: Australian Institute of Health and Welfare (2023). Data tables: Mental health services provided in emergency departments 2021–22. https://www.aihw.gov.au/mental-health/topic-areas/emergency-departments
+
+***Data Cleaning***
+
+From the spreadsheet donwload, only the sheet labelled “Table ED.4” was used. The name of this table is “Mental health-related emergency department presentations in public hospitals, by states and territories, 2014–15 to 2021–22.”
+
+The data cleaning R code can be found in the "Data_Cleaning/Emergencey_Department_Presentations" folder.
+
+The rendered markdown file has been published on RPubs [here](https://rpubs.com/tjelton/mental-health-related-emergency-department-presentations-australia).
+
+***Miscellaneous***
+
+In order to create the chloropleth map of Australia, a geojson file of the boundaries of Australia's states and territories is required. Check out the following to get this data:
+
+Hogan, R. (2014). australian-states/states.geojson. https://github.com/rowanhogan/australian-states/blob/master/states.geojson
 
