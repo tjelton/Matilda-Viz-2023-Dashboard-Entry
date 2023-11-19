@@ -110,14 +110,11 @@ calls_answered = c(1142234,1070860,835867,731646, 732365,793397, 831744, 821804)
 call_answer_rate = c(87,90.34,84.5,80,82,85,85,85)/100
 lifeline_data = tibble(year, calls_answered, call_answer_rate)
 
-
-
 # Set the light and dark themes.
 light <- bs_theme(bootswatch = "flatly")
 
 library(thematic)
 thematic_shiny(font = "auto")
-
 
 linebreaks <- function(n){HTML(strrep(br(), n))}
 
@@ -137,13 +134,14 @@ ui <- fluidPage(
     width = 12,
     ######################
     
-    linebreaks(13),
+    linebreaks(11),
     
     HTML('<h1 id = "beggining" style="text-align: center;">The Suicide Epidemic</h1>'),
     HTML('<h4>A Data Story</h4>'),
     linebreaks(1),
     HTML('<h5>Please wait 10 seconds for the dahsboard to fully load.</h5>'),
-    
+    HTML('<h5>This dashboard is best viewed on a computer (larger screen).</h5>'),
+    HTML('<br><br><h5>Made by Thomas Elton</h5>'),
     linebreaks(3), 
     
     p("Scroll to begin..."),
