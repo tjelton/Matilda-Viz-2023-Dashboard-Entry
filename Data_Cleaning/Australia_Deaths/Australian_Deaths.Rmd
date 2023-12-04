@@ -181,7 +181,7 @@ deaths_cleaned = rbind(male_df, female_df, all_df)
 ## The Final Cleaned Dataset
 
 ```{r}
-write.csv(deaths_cleaned, "data/death_data_cleaned.csv")
+write.csv(deaths_cleaned, "data/death_data_cleaned.csv", row.names = FALSE)
 str(deaths_cleaned)
 ```
 
@@ -191,7 +191,6 @@ str(deaths_cleaned)
 library(DT)
 library(formattable)
 data = read.csv("data/death_data_cleaned.csv") %>% 
-  select(-X) %>%
   filter(Cause_of_Death != "All causes") %>%
   rename(
     "Age Group" = "Age_Group",
