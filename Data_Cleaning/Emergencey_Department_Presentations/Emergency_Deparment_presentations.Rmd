@@ -158,7 +158,7 @@ hospital_data_cleaned_long = hospital_data_cleaned_long %>%
 ## The Final Cleaned Dataset
 
 ```{r}
-write.csv(hospital_data_cleaned_long, "data/cleaned_mental_health_emergency_department.csv")
+write.csv(hospital_data_cleaned_long, "data/cleaned_mental_health_emergency_department.csv", row.names = FALSE)
 str(hospital_data_cleaned_long)
 ```
 
