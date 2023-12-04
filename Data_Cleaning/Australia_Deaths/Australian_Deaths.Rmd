@@ -123,10 +123,10 @@ clean_sex_subset <- function(df, sex) {
   df = df %>% 
     mutate(Sex = sex)
   
-  
   # Remove the content in brackets in the Cause_of_Death column.
   df = df %>%
-    mutate(Cause_of_Death = gsub("\\(.*\\)", "", Cause_of_Death))
+    mutate(Cause_of_Death = gsub("\\(.*\\)", "", Cause_of_Death)) %>%
+    mutate(Cause_of_Death = trimws(Cause_of_Death))
   
   return(df)
 }
@@ -220,7 +220,7 @@ subset = data %>%
 datatable(subset, rownames = FALSE) %>% formatStyle(
   'Cause of Death',
   target = 'row',
-  backgroundColor = styleEqual(c("Suicide "), c('#fabdb9'))
+  backgroundColor = styleEqual(c("Suicide"), c('#fabdb9'))
 )
 ```
 
@@ -234,7 +234,7 @@ subset_2 = subset %>%
 
 # Get 2 ranks ahead of suicide and 2 ranks below suicide
 suicide_rank = subset %>%
-  filter(`Cause of Death` == "Suicide ") %>%
+  filter(`Cause of Death` == "Suicide") %>%
   select(Rank) %>%
   pull()
 bottom_bound = suicide_rank - 2
